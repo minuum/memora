@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "memora"
+version = "0.1.0"
+description = "Stateful AI workspace memory CLI"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Memora Contributors" }]
+license = { text = "MIT" }
+keywords = ["ai", "memory", "cli", "session", "supabase", "tmux"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Environment :: Console",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/memora"
+Repository = "https://github.com/your-org/memora"
+
+[project.scripts]
+memora = "memora.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
