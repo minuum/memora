@@ -223,3 +223,8 @@ dist/
 # Local memora home fallback
 .memora/
 >>>>>>> d98cf4d (feat: bootstrap memora package and cli)
+
+# Memora runtime state (auto-managed)
+.memora/sessions/
+.memora/longterm/chroma_db/
+.memora/longterm/memory.jsonl
