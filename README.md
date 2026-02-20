@@ -26,7 +26,8 @@ memora status
 
 `init`은 아래를 한 번에 수행합니다.
 - 로컬 세션 초기화
-- 실행환경 점검(tmux/Supabase env/gitignore)
+- 사용자 설정 마법사(이름/이메일/LLM/Supabase)
+- 실행환경 점검(tmux/Supabase/gitignore)
 - Codex용 기본 memora 스킬 세트 자동 생성(`~/.codex/skills`)
 
 ## 직관 명령어
@@ -47,10 +48,19 @@ memora where                       # 현재 MEMORA_HOME 확인
 `init` 옵션:
 
 ```bash
+memora init --interactive                 # 설정 마법사 강제 실행
+memora init --configure                   # 기존 config 있어도 다시 입력
 memora init --no-with-skills            # 스킬 생성 스킵
 memora init --skills-dir /path/skills   # 생성 경로 지정
 memora init --overwrite-skills          # 기존 스킬 덮어쓰기
+memora init --user-name minuum --user-email me@example.com
+memora init --llm-cmd codex
+memora init --supabase-url https://<project>.supabase.co
+memora init --supabase-service-role-key <service_role_key>
 ```
+
+설정은 로컬 워크스페이스의 `./.memora/config.json`에 저장되며, 이후 `ask`/`backup`에서 자동 재사용됩니다.
+환경변수(`MEMORA_LLM_CMD`, `SUPABASE_*`)가 있으면 설정값보다 우선 적용됩니다.
 
 ## 자동 .gitignore 반영
 
@@ -90,6 +100,41 @@ cd memora
 python -m pip install .
 # 또는
 pipx install .
+```
+
+## PyPI 배포
+
+GitHub Actions 기반 배포가 포함되어 있습니다.
+
+- `CI Package`: PR/`main`에서 빌드 + `twine check`
+- `Publish TestPyPI`: 수동 실행으로 TestPyPI 업로드
+- `Publish PyPI`: `v*` 태그 push 시 PyPI 업로드
+
+사전 1회 설정:
+1. PyPI/TestPyPI에 프로젝트 생성
+2. 각 인덱스에서 Trusted Publisher 등록
+3. GitHub repo Environment 생성:
+- `pypi`
+- `testpypi`
+
+릴리스 절차:
+
+```bash
+cd memora
+# 버전 갱신 (pyproject.toml)
+git add .
+git commit -m "chore: release v0.1.1"
+git tag v0.1.1
+git push origin main --tags
+```
+
+설치 확인:
+
+```bash
+pipx install memora
+# 또는
+python -m pip install memora
+memora --help
 ```
 
 ## 저장소 분리/푸시

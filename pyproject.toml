@@ -19,8 +19,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/memora"
-Repository = "https://github.com/your-org/memora"
+Homepage = "https://github.com/minuum/memora"
+Repository = "https://github.com/minuum/memora"
+Issues = "https://github.com/minuum/memora/issues"
 
 [project.scripts]
 memora = "memora.cli:main"

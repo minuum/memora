@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import socket
 import urllib.error
 import urllib.parse
@@ -13,6 +12,7 @@ from hashlib import sha256
 from typing import Any
 
 from .session_manager import load_session, save_session
+from .settings import resolve_setting
 from .workspace import longterm_jsonl_path
 
 
@@ -24,18 +24,11 @@ class SupabaseConfig:
     server_id: str
 
 
-def _read_env(name: str, default: str | None = None) -> str | None:
-    value = os.environ.get(name)
-    if value is not None and value.strip():
-        return value.strip()
-    return default
-
-
 def load_config(server_id: str | None = None) -> SupabaseConfig:
-    url = _read_env("SUPABASE_URL")
-    service_key = _read_env("SUPABASE_SERVICE_ROLE_KEY")
-    schema = _read_env("SUPABASE_SCHEMA", "public") or "public"
-    resolved_server_id = server_id or _read_env("SUPABASE_SERVER_ID", socket.gethostname())
+    url = resolve_setting("SUPABASE_URL", "supabase_url")
+    service_key = resolve_setting("SUPABASE_SERVICE_ROLE_KEY", "supabase_service_role_key")
+    schema = resolve_setting("SUPABASE_SCHEMA", "supabase_schema", "public") or "public"
+    resolved_server_id = server_id or resolve_setting("SUPABASE_SERVER_ID", "supabase_server_id", socket.gethostname())
 
     missing: list[str] = []
     if not url:
@@ -83,6 +76,8 @@ def _request_json(
     except urllib.error.HTTPError as exc:
         raw = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"Supabase request failed ({exc.code}): {raw}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Supabase connection failed: {exc.reason}") from exc
 
 
 def upsert_session(server_id: str | None = None) -> dict[str, Any]:
