@@ -1,60 +1,60 @@
-<<<<<<< HEAD
-# memora
-=======
 # Memora
 
-Stateful AI workspace memory CLI.
+로컬 기본 + Supabase 백업용 상태형 AI 메모리 CLI입니다.
 
-- L1: Core memory (always included)
-- L2: Session memory (crash-safe + auto-summary)
-- L3: Long-term memory (jsonl search + Supabase sync)
-- SSH recovery via tmux
+- 기본 저장소: 현재 프로젝트의 `./.memora`
+- 세션 복구: `tmux` 연동
+- 백업/복원: Supabase (`backup push/pull`)
+- 컨텍스트 계층: Core / Session / Long-term
 
-## Quick Start (local repo)
+## 기본 운영 방식 (권장)
 
-```bash
-cd memora
-./memora init --session-id 2026-02-20-dev1
-./memora run --user-input "다음 작업 제안" --dry-run
-./memora tmux-start
-./memora resume
-```
+1. 로컬에서 작업
+2. 필요 시 Supabase로 백업
+3. 다른 서버에서 Supabase에서 복원
 
-`vla` is kept as a compatibility alias:
+즉, Supabase는 실시간 주 저장소가 아니라 백업/복구 레이어로 사용합니다.
+
+## Quick Start
 
 ```bash
-./vla show
+# 프로젝트 루트에서
+memora start --session-id dev-2026-02-20
+memora ask "현재 작업 이어서 정리해줘" --cmd "codex"
+memora status
 ```
 
-## Install As Package
-
-### Option A: pipx (recommended)
+## 직관 명령어
 
 ```bash
-cd memora
-pipx install .
-memora --help
+memora start --session-id <id>     # 세션 시작/초기화
+memora ask "..." --cmd "codex"     # 메모리 포함 질의 (추천)
+memora status                      # 로컬 상태 요약
+memora resume --attach             # SSH 재접속 후 tmux 복구
+memora backup push                 # 로컬 -> Supabase 백업
+memora backup pull --session-id <id> # Supabase -> 로컬 복원
+memora where                       # 현재 MEMORA_HOME 확인
 ```
 
-### Option B: pip
+기존 호환 명령(`init`, `run`, `show`, `supabase-*`)도 계속 동작합니다.
 
-```bash
-cd memora
-python -m pip install .
-memora --help
+## 자동 .gitignore 반영
+
+Memora가 워크스페이스를 생성할 때, 현재 Git 저장소의 `.gitignore`에 아래 경로를 자동 추가합니다.
+
+```gitignore
+.memora/sessions/
+.memora/longterm/chroma_db/
+.memora/longterm/memory.jsonl
 ```
 
-By default, runtime data is saved to `./.memora` from your current working directory.
-You can override with:
+- 비활성화: `export MEMORA_AUTO_GITIGNORE=0`
+- 커스텀 홈 사용 시: `MEMORA_HOME` 기준 상대 경로로 자동 반영
 
-```bash
-export MEMORA_HOME=/path/to/memora-home
-```
+## Supabase 백업 설정
 
-## Supabase Sync
-
-1. Apply SQL schema: `sql/supabase_schema.sql`
-2. Set env vars:
+1. Supabase SQL 적용: `sql/supabase_schema.sql`
+2. 환경변수 설정
 
 ```bash
 export SUPABASE_URL="https://<project>.supabase.co"
@@ -62,47 +62,26 @@ export SUPABASE_SERVICE_ROLE_KEY="<service_role_key>"
 export SUPABASE_SERVER_ID="dev-server-01"
 ```
 
-3. Sync:
+3. 백업/복원
 
 ```bash
-memora supabase-push-session
-memora supabase-push-longterm
-memora supabase-pull-session --session-id 2026-02-20-dev1 --server-id dev-server-01
+memora backup push
+memora backup pull --session-id dev-2026-02-20 --server-id dev-server-01
 ```
 
-## GitHub Repo Split (from current monorepo)
-
-If you want this `memora` directory as an independent repository:
-
-```bash
-# from monorepo root
-git subtree split --prefix=memora -b memora-split
-
-# create new empty GitHub repo first, then:
-git push <new-memora-remote-url> memora-split:main
-```
-
-Or just copy `memora/` to a new directory and run:
+## 설치
 
 ```bash
 cd memora
-git init
-git add .
-git commit -m "feat: initial memora package"
+python -m pip install .
+# 또는
+pipx install .
+```
+
+## 저장소 분리/푸시
+
+```bash
+cd memora
 git remote add origin <new-memora-remote-url>
 git push -u origin main
 ```
-
-## Main Commands
-
-```bash
-memora init --session-id <id>
-memora run --user-input "..." --cmd "codex"
-memora show
-memora build --user-input "..."
-memora tmux-start
-memora resume --attach
-memora supabase-status
-memora where
-```
->>>>>>> d98cf4d (feat: bootstrap memora package and cli)

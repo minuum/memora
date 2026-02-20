@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 
 from .memory_manager import build_memory_block
@@ -34,6 +35,11 @@ def cmd_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_start(args: argparse.Namespace) -> int:
+    print(json.dumps(init_session(session_id=args.session_id, overwrite=args.overwrite), ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_add(args: argparse.Namespace) -> int:
     print(json.dumps(add_message(role=args.role, content=args.content), ensure_ascii=False, indent=2))
     return 0
@@ -59,6 +65,24 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 0
 
     code, stdout, stderr = run_external(prompt=prompt, cmd=args.cmd)
+    output = stdout or stderr or "(empty response)"
+    add_message(role="assistant", content=output)
+    print(output)
+    return code
+
+
+def cmd_ask(args: argparse.Namespace) -> int:
+    user_input = args.user_input
+    cmd = args.cmd or os.environ.get("MEMORA_LLM_CMD", "cat")
+
+    add_message(role="user", content=user_input)
+    prompt = build_prompt(user_input=user_input)
+
+    if args.dry_run:
+        print(prompt)
+        return 0
+
+    code, stdout, stderr = run_external(prompt=prompt, cmd=cmd)
     output = stdout or stderr or "(empty response)"
     add_message(role="assistant", content=output)
     print(output)
@@ -154,6 +178,57 @@ def cmd_supabase_pull_longterm(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_status(args: argparse.Namespace) -> int:
+    del args
+    session = load_session()
+    payload = {
+        "workspace": str(workspace_root()),
+        "session_id": session.get("session_id"),
+        "last_updated": session.get("last_updated"),
+        "conversation_turns": len(session.get("conversation", [])),
+        "summary_chars": len(session.get("summary", "")),
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_backup_push(args: argparse.Namespace) -> int:
+    session_payload = upsert_session(server_id=args.server_id)
+    longterm_payload = push_longterm(server_id=args.server_id)
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "mode": "backup_push",
+                "session": session_payload,
+                "longterm": longterm_payload,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def cmd_backup_pull(args: argparse.Namespace) -> int:
+    session_payload = pull_session(session_id=args.session_id, server_id=args.server_id)
+    longterm_payload = pull_longterm(server_id=args.server_id)
+    ok = bool(session_payload.get("ok"))
+    print(
+        json.dumps(
+            {
+                "ok": ok,
+                "mode": "backup_pull",
+                "session": session_payload,
+                "longterm": longterm_payload,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0 if ok else 1
+
+
 def cmd_where(args: argparse.Namespace) -> int:
     del args
     print(str(workspace_root()))
@@ -168,6 +243,11 @@ def make_parser() -> argparse.ArgumentParser:
     p_init.add_argument("--session-id", default=None)
     p_init.add_argument("--overwrite", action="store_true")
     p_init.set_defaults(func=cmd_init)
+
+    p_start = sub.add_parser("start", help="initialize or resume local workspace session (recommended)")
+    p_start.add_argument("--session-id", default=None)
+    p_start.add_argument("--overwrite", action="store_true")
+    p_start.set_defaults(func=cmd_start)
 
     p_add = sub.add_parser("add", help="append message into session")
     p_add.add_argument("--role", required=True, choices=["user", "assistant", "system"])
@@ -186,6 +266,15 @@ def make_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--cmd", default="cat", help="command that reads prompt from stdin")
     p_run.add_argument("--dry-run", action="store_true")
     p_run.set_defaults(func=cmd_run)
+
+    p_ask = sub.add_parser("ask", help="ask with memory context (recommended)")
+    p_ask.add_argument("user_input")
+    p_ask.add_argument("--cmd", default=None, help="LLM command (default: MEMORA_LLM_CMD or cat)")
+    p_ask.add_argument("--dry-run", action="store_true")
+    p_ask.set_defaults(func=cmd_ask)
+
+    p_status = sub.add_parser("status", help="show concise local workspace status")
+    p_status.set_defaults(func=cmd_status)
 
     p_tmux_start = sub.add_parser("tmux-start", help="start detached tmux session for active session_id")
     p_tmux_start.add_argument("--command", default=None, help="optional bootstrap command in tmux")
@@ -219,6 +308,18 @@ def make_parser() -> argparse.ArgumentParser:
     p_sb_pull_lt = sub.add_parser("supabase-pull-longterm", help="pull long-term memory from Supabase")
     p_sb_pull_lt.add_argument("--server-id", default=None)
     p_sb_pull_lt.set_defaults(func=cmd_supabase_pull_longterm)
+
+    p_backup = sub.add_parser("backup", help="backup or restore with Supabase")
+    backup_sub = p_backup.add_subparsers(dest="backup_command", required=True)
+
+    p_backup_push = backup_sub.add_parser("push", help="push session + longterm to Supabase")
+    p_backup_push.add_argument("--server-id", default=None)
+    p_backup_push.set_defaults(func=cmd_backup_push)
+
+    p_backup_pull = backup_sub.add_parser("pull", help="pull session + longterm from Supabase")
+    p_backup_pull.add_argument("--session-id", default=None)
+    p_backup_pull.add_argument("--server-id", default=None)
+    p_backup_pull.set_defaults(func=cmd_backup_pull)
 
     p_where = sub.add_parser("where", help="print active MEMORA_HOME path")
     p_where.set_defaults(func=cmd_where)

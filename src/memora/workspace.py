@@ -15,6 +15,8 @@ DEFAULT_CORE_MEMORY = """# Master Core Memory
 - 일관되게 유지할 아키텍처 원칙
 """
 
+_GITIGNORE_MARKER = "# Memora runtime state (auto-managed)"
+
 
 def workspace_root() -> Path:
     env_home = os.environ.get("MEMORA_HOME")
@@ -51,6 +53,62 @@ def chroma_db_dir() -> Path:
     return workspace_root() / "longterm" / "chroma_db"
 
 
+def _find_git_root(start: Path) -> Path | None:
+    current = start.resolve()
+    for candidate in [current, *current.parents]:
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
+def _gitignore_rules_for(memora_home: Path, git_root: Path) -> list[str]:
+    try:
+        rel = memora_home.resolve().relative_to(git_root.resolve())
+    except ValueError:
+        return []
+
+    base = rel.as_posix().rstrip("/")
+    if not base:
+        return []
+
+    return [
+        f"{base}/sessions/",
+        f"{base}/longterm/chroma_db/",
+        f"{base}/longterm/memory.jsonl",
+    ]
+
+
+def ensure_gitignore_rules() -> bool:
+    if os.environ.get("MEMORA_AUTO_GITIGNORE", "1").strip().lower() in {"0", "false", "off", "no"}:
+        return False
+
+    git_root = _find_git_root(Path.cwd())
+    if git_root is None:
+        return False
+
+    rules = _gitignore_rules_for(workspace_root(), git_root)
+    if not rules:
+        return False
+
+    gitignore_path = git_root / ".gitignore"
+    existing_lines: list[str] = []
+    if gitignore_path.exists():
+        existing_lines = gitignore_path.read_text(encoding="utf-8").splitlines()
+
+    missing = [rule for rule in rules if rule not in existing_lines]
+    if not missing:
+        return False
+
+    out = existing_lines[:]
+    if out and out[-1].strip():
+        out.append("")
+    out.append(_GITIGNORE_MARKER)
+    out.extend(missing)
+    out.append("")
+    gitignore_path.write_text("\n".join(out), encoding="utf-8")
+    return True
+
+
 def ensure_workspace_layout() -> None:
     (workspace_root() / "core").mkdir(parents=True, exist_ok=True)
     archive_dir().mkdir(parents=True, exist_ok=True)
@@ -59,3 +117,5 @@ def ensure_workspace_layout() -> None:
     core_path = core_memory_path()
     if not core_path.exists():
         core_path.write_text(DEFAULT_CORE_MEMORY, encoding="utf-8")
+
+    ensure_gitignore_rules()
