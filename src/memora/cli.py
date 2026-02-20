@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
+from pathlib import Path
 
+from .bootstrap import default_skills_root, ensure_default_skills
 from .memory_manager import build_memory_block
 from .session_manager import add_message, init_session, load_session
 from .supabase_sync import pull_longterm, pull_session, push_longterm, supabase_status, upsert_session
@@ -18,7 +21,7 @@ from .tmux_manager import (
     tmux_list_sessions,
     tmux_new_session,
 )
-from .workspace import workspace_root
+from .workspace import ensure_gitignore_rules, workspace_root
 
 
 def build_prompt(user_input: str) -> str:
@@ -31,7 +34,40 @@ def run_external(prompt: str, cmd: str) -> tuple[int, str, str]:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
-    print(json.dumps(init_session(session_id=args.session_id, overwrite=args.overwrite), ensure_ascii=False, indent=2))
+    session = init_session(session_id=args.session_id, overwrite=args.overwrite)
+
+    skills_report: dict[str, object] | None = None
+    if args.with_skills:
+        skills_root = Path(args.skills_dir).expanduser().resolve() if args.skills_dir else default_skills_root()
+        skills_report = ensure_default_skills(skills_root=skills_root, overwrite=args.overwrite_skills)
+
+    missing_supabase = [
+        key for key in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY") if not os.environ.get(key, "").strip()
+    ]
+
+    payload = {
+        "ok": True,
+        "workspace": str(workspace_root()),
+        "session": session,
+        "checks": {
+            "memora_command": bool(shutil.which("memora")),
+            "tmux_available": tmux_available(),
+            "supabase_env_ready": not missing_supabase,
+            "missing_supabase_env": missing_supabase,
+            "gitignore_updated": ensure_gitignore_rules(),
+        },
+        "skills": skills_report
+        if skills_report is not None
+        else {"ok": True, "skipped": True, "reason": "--no-with-skills option used"},
+        "next_commands": [
+            f'memora ask "현재 작업 컨텍스트 정리해줘" --cmd "{os.environ.get("MEMORA_LLM_CMD", "codex")}"',
+            "memora status",
+            "memora where",
+            "memora backup push",
+        ],
+    }
+
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -239,9 +275,17 @@ def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Memora: stateful AI workspace memory CLI")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p_init = sub.add_parser("init", help="initialize active session")
+    p_init = sub.add_parser("init", help="first-run setup: initialize session, run checks, and bootstrap skills")
     p_init.add_argument("--session-id", default=None)
     p_init.add_argument("--overwrite", action="store_true")
+    p_init.add_argument(
+        "--with-skills",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="generate default memora skills set (default: on)",
+    )
+    p_init.add_argument("--skills-dir", default=None, help="target skills directory (default: $MEMORA_SKILLS_DIR or ~/.codex/skills)")
+    p_init.add_argument("--overwrite-skills", action="store_true", help="overwrite existing generated skills")
     p_init.set_defaults(func=cmd_init)
 
     p_start = sub.add_parser("start", help="initialize or resume local workspace session (recommended)")

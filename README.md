@@ -19,14 +19,20 @@
 
 ```bash
 # 프로젝트 루트에서
-memora start --session-id dev-2026-02-20
+memora init --session-id dev-2026-02-20
 memora ask "현재 작업 이어서 정리해줘" --cmd "codex"
 memora status
 ```
 
+`init`은 아래를 한 번에 수행합니다.
+- 로컬 세션 초기화
+- 실행환경 점검(tmux/Supabase env/gitignore)
+- Codex용 기본 memora 스킬 세트 자동 생성(`~/.codex/skills`)
+
 ## 직관 명령어
 
 ```bash
+memora init --session-id <id>      # 첫 실행 권장(체크 + 스킬 부트스트랩)
 memora start --session-id <id>     # 세션 시작/초기화
 memora ask "..." --cmd "codex"     # 메모리 포함 질의 (추천)
 memora status                      # 로컬 상태 요약
@@ -36,7 +42,15 @@ memora backup pull --session-id <id> # Supabase -> 로컬 복원
 memora where                       # 현재 MEMORA_HOME 확인
 ```
 
-기존 호환 명령(`init`, `run`, `show`, `supabase-*`)도 계속 동작합니다.
+기존 호환 명령(`run`, `show`, `supabase-*`)도 계속 동작합니다.
+
+`init` 옵션:
+
+```bash
+memora init --no-with-skills            # 스킬 생성 스킵
+memora init --skills-dir /path/skills   # 생성 경로 지정
+memora init --overwrite-skills          # 기존 스킬 덮어쓰기
+```
 
 ## 자동 .gitignore 반영
 
