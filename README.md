@@ -13,7 +13,7 @@ Stateful AI workspace memory CLI.
 ## Quick Start (local repo)
 
 ```bash
-cd ai-workspace
+cd memora
 ./memora init --session-id 2026-02-20-dev1
 ./memora run --user-input "다음 작업 제안" --dry-run
 ./memora tmux-start
@@ -31,7 +31,7 @@ cd ai-workspace
 ### Option A: pipx (recommended)
 
 ```bash
-cd ai-workspace
+cd memora
 pipx install .
 memora --help
 ```
@@ -39,7 +39,7 @@ memora --help
 ### Option B: pip
 
 ```bash
-cd ai-workspace
+cd memora
 python -m pip install .
 memora --help
 ```
@@ -72,17 +72,17 @@ memora supabase-pull-session --session-id 2026-02-20-dev1 --server-id dev-server
 
 ## GitHub Repo Split (from current monorepo)
 
-If you want `ai-workspace` as an independent `memora` repository:
+If you want this `memora` directory as an independent repository:
 
 ```bash
 # from monorepo root
-git subtree split --prefix=ai-workspace -b memora-split
+git subtree split --prefix=memora -b memora-split
 
 # create new empty GitHub repo first, then:
 git push <new-memora-remote-url> memora-split:main
 ```
 
-Or just copy `ai-workspace/` to a new directory and run:
+Or just copy `memora/` to a new directory and run:
 
 ```bash
 cd memora
