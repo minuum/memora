@@ -113,9 +113,10 @@ GitHub Actions 기반 배포가 포함되어 있습니다.
 사전 1회 설정:
 1. PyPI/TestPyPI에 프로젝트 생성
 2. 각 인덱스에서 Trusted Publisher 등록
-3. GitHub repo Environment 생성:
-- `pypi`
-- `testpypi`
+3. Trusted Publisher의 repository/workflow를 아래와 정확히 일치:
+- owner: `minuum`
+- repo: `memora`
+- workflow: `publish-pypi.yml` (PyPI), `publish-testpypi.yml` (TestPyPI)
 
 릴리스 절차:
 
